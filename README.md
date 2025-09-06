@@ -1,4 +1,4 @@
-# MyMindSpace Semantic Search Memory Database Service
+# MyMindSpace Memory Embedding Database Service
 
 A specialized vector database CRUD service for storing and retrieving memory embeddings for intelligent semantic search and memory management in the MyMindSpace mental wellness platform.
 
@@ -23,7 +23,7 @@ Designed for sophisticated memory retrieval, context awareness, and semantic und
 ```bash
 # Clone the repository
 git clone <your-repo-url>
-cd SementicSearchDB
+cd MemoryEmbeddingDB
 
 # Install dependencies
 npm install
@@ -34,7 +34,7 @@ cp .env.example .env
 
 ### 2. AstraDB Setup
 1. **Create Database**: Go to [AstraDB Console](https://astra.datastax.com) → Create Database
-   - Database Name: `mymindspace-semantic-search`
+   - Database Name: `mymindspace-memory-embeddings`
    - Keyspace: `default_keyspace`
    - Region: Choose closest to your deployment
 
@@ -74,28 +74,52 @@ curl http://localhost:3000/health
 ```json
 {
   "id": "uuid",
-  "user_id": "uuid",
-  "memory_type": "conversation | event | emotion | insight",
-  "content_summary": "text",
-  "original_entry_id": "uuid", 
-  "importance_score": "float",
-  "emotional_significance": "float",
-  "temporal_relevance": "float",
-  "access_frequency": "integer",
-  "last_accessed": "datetime",
-  "created_at": "datetime",
+  "user_id": "uuid (required)",
+  "memory_type": "string (required: conversation | event | emotion | insight)",
+  "content_summary": "string (required, 1-5000 chars)",
+  "original_entry_id": "uuid (required)", 
+  "importance_score": "number (required, 0-1)",
+  "emotional_significance": "number (required, 0-1)",
+  "temporal_relevance": "number (required, 0-1)",
+  "access_frequency": "integer (default: 0, >= 0)",
+  "feature_vector": "array[90] (required, 90-dimensional vector)",
   "gate_scores": {
-    "forget_score": "float",
-    "input_score": "float", 
-    "output_score": "float",
-    "confidence": "float"
+    "forget_score": "number (required, 0-1)",
+    "input_score": "number (required, 0-1)", 
+    "output_score": "number (required, 0-1)",
+    "confidence": "number (required, 0-1)"
   },
-  "feature_vector": [90 dimensions],
-  "relationships": ["array", "of", "related", "memory_ids"],
-  "context_needed": "jsonb",
-  "retrieval_triggers": ["keywords", "that", "trigger", "this", "memory"]
+  "relationships": "array[uuid] (default: [], related memory IDs)",
+  "context_needed": "object (default: {}, flexible JSON object)",
+  "retrieval_triggers": "array[string] (default: [], trigger keywords)"
 }
 ```
+
+## API Endpoints
+
+### Core CRUD Operations
+- `POST /api/memory-embeddings` - Create new memory embedding
+- `GET /api/memory-embeddings/:id` - Get memory by ID
+- `PUT /api/memory-embeddings/:id` - Update memory (partial update)
+- `DELETE /api/memory-embeddings/:id` - Delete memory
+
+### User-Specific Operations
+- `GET /api/memory-embeddings/user/:userId` - Get all memories for user
+- `GET /api/memory-embeddings/user/:userId/important` - Get important memories
+- `GET /api/memory-embeddings/user/:userId/recent` - Get recently accessed memories
+- `GET /api/memory-embeddings/user/:userId/relationships/:memoryId` - Get related memories
+
+### Type-Based Operations
+- `GET /api/memory-embeddings/type/:memoryType` - Get memories by type
+
+### Search & Query Operations
+- `POST /api/memory-embeddings/similarity` - Vector similarity search
+- `GET /api/memory-embeddings/query` - Query with filters and pagination
+- `POST /api/memory-embeddings/batch` - Batch create memories
+
+### Utility Operations
+- `POST /api/memory-embeddings/:id/access` - Record memory access
+- `GET /api/memory-embeddings/stats` - Collection statistics
 
 ## 🚀 API Endpoints & Usage
 

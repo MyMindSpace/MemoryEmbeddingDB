@@ -27,8 +27,7 @@ class AstraDBConnection {
       this.client = new DataAPIClient(process.env.ASTRA_DB_APPLICATION_TOKEN);
 
       // Connect to database using API endpoint
-      const dbEndpoint = process.env.ASTRA_DB_API_ENDPOINT || 
-        `https://${process.env.ASTRA_DB_ID}-${process.env.ASTRA_DB_REGION}.apps.astra.datastax.com`;
+      const dbEndpoint = process.env.ASTRA_DB_API_ENDPOINT;
 
       console.log(`🔗 Using endpoint: ${dbEndpoint}`);
 
@@ -105,26 +104,14 @@ Make sure it has the correct permissions for your database.
   validateConfig() {
     const requiredVars = [
       'ASTRA_DB_APPLICATION_TOKEN',
-      'ASTRA_DB_ID',
-      'ASTRA_DB_REGION',
+      'ASTRA_DB_API_ENDPOINT',
       'ASTRA_DB_KEYSPACE'
     ];
 
     const missingVars = requiredVars.filter(varName => !process.env[varName]);
 
     if (missingVars.length > 0) {
-      throw new Error(`
-❌ Missing required environment variables: ${missingVars.join(', ')}
-
-Please add these to your .env file:
-
-ASTRA_DB_APPLICATION_TOKEN=your_token_here
-ASTRA_DB_ID=your_database_id_here
-ASTRA_DB_REGION=your_region_here
-ASTRA_DB_KEYSPACE=default_keyspace
-
-Visit https://astra.datastax.com to get these values.
-      `);
+      throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
     }
 
     console.log('✅ Environment configuration validated');

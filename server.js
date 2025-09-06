@@ -58,19 +58,9 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// API Key validation middleware
+// API Key validation middleware (disabled for deployment)
 const validateApiKey = (req, res, next) => {
-  const apiKey = req.header('X-API-Key');
-  
-  if (process.env.NODE_ENV === 'production') {
-    if (!apiKey || apiKey !== process.env.API_KEY) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid or missing API key'
-      });
-    }
-  }
-  
+  // Skip API key validation for deployment
   next();
 };
 
