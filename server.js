@@ -77,7 +77,7 @@ app.get('/health', async (req, res) => {
       success: true,
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      service: 'mymindspace-semantic-search-service',
+      service: 'memory-embedding-service <3',
       version: '1.0.0',
       database: 'connected',
       uptime: process.uptime()

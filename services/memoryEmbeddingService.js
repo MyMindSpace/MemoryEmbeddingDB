@@ -190,15 +190,20 @@ class MemoryEmbeddingService {
         query.retrieval_triggers = { $in: filters.retrieval_triggers };
       }
 
-      // Perform vector similarity search
-      const results = await this.collection.find(
+      // Perform vector similarity search using AstraDB syntax
+      const cursor = this.collection.find(
         query,
         {
           sort: { $vector: queryVector },
           limit,
           includeSimilarity: true
         }
-      ).toArray();
+      );
+
+      const results = [];
+      for await (const doc of cursor) {
+        results.push(doc);
+      }
 
       return {
         query_vector_dimensions: queryVector.length,
@@ -308,19 +313,32 @@ class MemoryEmbeddingService {
         if (date_range.end) query.created_at.$lte = date_range.end;
       }
 
-      // Build sort
+      // Build sort for AstraDB
       const sortOrder = sort_order === 'asc' ? 1 : -1;
       const sortObj = { [sort_by]: sortOrder };
 
-      // Execute query with pagination
-      const results = await this.collection.find(query)
-        .sort(sortObj)
-        .skip(offset)
-        .limit(limit)
-        .toArray();
+      // Execute query with pagination using AstraDB syntax
+      const findOptions = {
+        sort: sortObj,
+        limit: limit,
+        skip: offset
+      };
 
-      // Get total count for pagination
-      const totalCount = await this.collection.countDocuments(query);
+      const cursor = this.collection.find(query, findOptions);
+      const results = [];
+      
+      // Iterate through cursor to get results
+      for await (const doc of cursor) {
+        results.push(doc);
+      }
+
+      // Get total count for pagination using AstraDB estimatedDocumentCount
+      // Note: AstraDB doesn't have countDocuments, using find without limit for count
+      const countCursor = this.collection.find(query);
+      let totalCount = 0;
+      for await (const doc of countCursor) {
+        totalCount++;
+      }
 
       return {
         results: results.map(result => ({
@@ -390,46 +408,48 @@ class MemoryEmbeddingService {
     try {
       await this.initialize();
 
-      const totalCount = await this.collection.countDocuments({});
-      
-      // Get statistics by memory type
-      const memoryTypeStats = await this.collection.aggregate([
-        { $group: { _id: '$memory_type', count: { $sum: 1 } } }
-      ]).toArray();
+      // Get total count using find iterator (AstraDB doesn't have countDocuments)
+      const allDocsCursor = this.collection.find({});
+      let totalCount = 0;
+      const memoryTypes = {};
+      let totalImportanceScore = 0;
+      let totalEmotionalSignificance = 0;
+      let totalTemporalRelevance = 0;
+      let totalAccessFrequency = 0;
 
       // Get recent activity (last 7 days)
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
-      const recentCount = await this.collection.countDocuments({
-        created_at: { $gte: sevenDaysAgo.toISOString() }
-      });
+      let recentCount = 0;
 
-      // Average scores
-      const scoreStats = await this.collection.aggregate([
-        {
-          $group: {
-            _id: null,
-            avg_importance_score: { $avg: '$importance_score' },
-            avg_emotional_significance: { $avg: '$emotional_significance' },
-            avg_temporal_relevance: { $avg: '$temporal_relevance' },
-            avg_access_frequency: { $avg: '$access_frequency' }
-          }
+      // Process all documents to gather statistics
+      for await (const doc of allDocsCursor) {
+        totalCount++;
+        
+        // Count by memory type
+        memoryTypes[doc.memory_type] = (memoryTypes[doc.memory_type] || 0) + 1;
+        
+        // Sum for averages
+        totalImportanceScore += doc.importance_score || 0;
+        totalEmotionalSignificance += doc.emotional_significance || 0;
+        totalTemporalRelevance += doc.temporal_relevance || 0;
+        totalAccessFrequency += doc.access_frequency || 0;
+        
+        // Check if recent
+        if (doc.created_at && new Date(doc.created_at) >= sevenDaysAgo) {
+          recentCount++;
         }
-      ]).toArray();
+      }
 
       return {
         total_memories: totalCount,
         recent_memories_7_days: recentCount,
-        memory_type_distribution: memoryTypeStats.reduce((acc, stat) => {
-          acc[stat._id] = stat.count;
-          return acc;
-        }, {}),
-        score_statistics: scoreStats[0] || {
-          avg_importance_score: 0,
-          avg_emotional_significance: 0,
-          avg_temporal_relevance: 0,
-          avg_access_frequency: 0
+        memory_type_distribution: memoryTypes,
+        score_statistics: {
+          avg_importance_score: totalCount > 0 ? totalImportanceScore / totalCount : 0,
+          avg_emotional_significance: totalCount > 0 ? totalEmotionalSignificance / totalCount : 0,
+          avg_temporal_relevance: totalCount > 0 ? totalTemporalRelevance / totalCount : 0,
+          avg_access_frequency: totalCount > 0 ? totalAccessFrequency / totalCount : 0
         },
         collection_info: {
           name: 'memory_embeddings',
